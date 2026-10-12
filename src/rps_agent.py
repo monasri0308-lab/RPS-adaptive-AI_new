@@ -1,23 +1,45 @@
 """
-Rock-Paper-Scissors Opponent Modeling Agent
-============================================
-An adaptive Rock-Paper-Scissors agent implementing an Order-N Markov chain
-with hierarchical backoff to predict opponent actions and play optimal counter-moves.
-
-Baseline opponents:
-- Pure Random
-- Fixed / Rotating Strategy (e.g., R -> P -> S cycle)
-- Biased Streak Random (Human-like cognitive bias)
+Rock-Paper-Scissors Opponent Modeling & Probabilistic AI Suite
+=============================================================
+A comprehensive decision-making AI suite implementing:
+1. CSP Layer: Constraint-Satisfaction Adversary with backtracking search.
+2. Knowledge & Reasoning Layer: Symbolic human heuristics (WSLS, Cycling, Copying).
+3. Applied Bayesian Layer: Dirichlet-Multinomial Bayesian inference and Expected Utility Maximization.
+4. Markov Pattern Modeling: Order-N Markov chain with hierarchical backoff.
+5. Responsible AI Layer: Cryptographic fair-play commitments and transparent explainability.
 """
 
 import argparse
+import math
 import os
 import random
+import sys
 from collections import Counter, defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
+
+# Ensure local imports resolve in all execution contexts
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+
+from bayesian_model import BayesianOpponent, BayesianPredictor
+from csp_adversary import CSPAdversaryOpponent, CSPSequenceGenerator
+from probabilistic_agent import ProbabilisticOpponentModeller
+from reasoning_layer import (
+    CopycatOpponent,
+    CyclingOpponent,
+    RuleBasedStrategyDetector,
+    WinStayLoseShiftOpponent,
+    evaluate_round,
+)
+from responsible_ai import (
+    CryptographicCommitment,
+    DataConsentManager,
+    format_explainability_card,
+)
 
 # Valid Moves & Counter-Move Rules
 MOVES: List[str] = ["R", "P", "S"]
@@ -25,32 +47,13 @@ MOVE_NAMES: Dict[str, str] = {"R": "Rock", "P": "Paper", "S": "Scissors"}
 COUNTER_MOVES: Dict[str, str] = {"R": "P", "P": "S", "S": "R"}
 
 
-def evaluate_round(agent_move: str, opponent_move: str) -> str:
-    """Evaluate outcome from the perspective of the agent.
-
-    Returns:
-        'WIN', 'LOSS', or 'TIE'
-    """
-    if agent_move == opponent_move:
-        return "TIE"
-    elif COUNTER_MOVES[opponent_move] == agent_move:
-        return "WIN"
-    else:
-        return "LOSS"
-
-
 class OpponentModel:
-    """Frequency and pattern model using an Order-N Markov Chain with Hierarchical Backoff.
-
-    Hierarchy:
-        Order-N Markov Context -> Order-(N-1) -> ... -> Order-1 -> Unigram Frequency -> Uniform Random
-    """
+    """Frequency and pattern model using an Order-N Markov Chain with Hierarchical Backoff."""
 
     def __init__(self, order: int = 2, seed: Optional[int] = None):
         self.order = max(1, order)
         self.rng = random.Random(seed)
         self.history: List[str] = []
-        # n_grams[k] stores mapping: tuple of k moves -> Counter of next moves
         self.n_grams: Dict[int, Dict[Tuple[str, ...], Counter]] = {
             k: defaultdict(Counter) for k in range(1, self.order + 1)
         }
@@ -61,19 +64,16 @@ class OpponentModel:
         if opponent_move not in MOVES:
             raise ValueError(f"Invalid move '{opponent_move}'. Must be one of {MOVES}")
 
-        # Update n-gram transitions for all k in [1, order]
         for k in range(1, self.order + 1):
             if len(self.history) >= k:
                 context = tuple(self.history[-k:])
                 self.n_grams[k][context][opponent_move] += 1
 
-        # Update unigram frequency
         self.unigram[opponent_move] += 1
         self.history.append(opponent_move)
 
     def predict_next_move(self) -> str:
-        """Predict the opponent's next move using backoff strategy."""
-        # 1. Try Order-k Markov predictions from Order-N down to Order-1
+        """Predict the opponent's next move using hierarchical backoff strategy."""
         for k in range(self.order, 0, -1):
             if len(self.history) >= k:
                 context = tuple(self.history[-k:])
@@ -83,13 +83,11 @@ class OpponentModel:
                     candidates = [m for m, c in counts.items() if c == max_count]
                     return self.rng.choice(candidates)
 
-        # 2. Fall back to Unigram frequency
         if self.unigram:
             max_count = max(self.unigram.values())
             candidates = [m for m, c in self.unigram.items() if c == max_count]
             return self.rng.choice(candidates)
 
-        # 3. Fall back to Uniform Random when no history is available
         return self.rng.choice(MOVES)
 
     def get_counter_move(self) -> str:
@@ -110,19 +108,25 @@ class OpponentModel:
 
 
 class AdaptiveAgent:
-    """Adaptive RPS Agent powered by the Markov OpponentModel."""
+    """Adaptive RPS Agent combining Markov pattern modeling, Bayesian updating, and symbolic reasoning."""
 
     def __init__(self, order: int = 2, seed: Optional[int] = None):
+        self.order = order
         self.model = OpponentModel(order=order, seed=seed)
+        self.probabilistic_modeller = ProbabilisticOpponentModeller(
+            order=order, seed=seed
+        )
 
     def get_move(self) -> str:
-        return self.model.get_counter_move()
+        return self.probabilistic_modeller.get_move()
 
     def observe(self, opponent_move: str) -> None:
         self.model.update(opponent_move)
+        self.probabilistic_modeller.observe(opponent_move)
 
     def reset(self) -> None:
         self.model.reset()
+        self.probabilistic_modeller.reset()
 
 
 class RandomAgent:
@@ -142,7 +146,7 @@ class RandomAgent:
 
 
 # =====================================================================
-# BASELINE OPPONENT IMPLEMENTATIONS
+# BASELINE OPPONENTS
 # =====================================================================
 
 
@@ -184,10 +188,7 @@ class RotatingOpponent:
 
 
 class BiasedStreakOpponent:
-    """Human-like opponent with marginal move bias (50% R, 30% P, 20% S) and streak bias.
-
-    Simulates cognitive bias where humans non-randomly repeat their previous action.
-    """
+    """Human-like opponent with marginal move bias and streak persistence."""
 
     def __init__(
         self,
@@ -201,7 +202,6 @@ class BiasedStreakOpponent:
         self.rng = random.Random(seed)
         self.last_move: Optional[str] = None
 
-        # Normalize weights
         total = sum(self.weights.values())
         self.moves = list(self.weights.keys())
         self.probs = [self.weights[m] / total for m in self.moves]
@@ -226,7 +226,7 @@ class BiasedStreakOpponent:
 # =====================================================================
 
 
-def run_matchup(agent, opponent, rounds: int) -> Dict[str, np.ndarray]:
+def run_matchup(agent, opponent, rounds: int) -> Dict[str, Any]:
     """Simulate a match of N rounds between an agent and an opponent."""
     agent.reset()
     opponent.reset()
@@ -235,6 +235,7 @@ def run_matchup(agent, opponent, rounds: int) -> Dict[str, np.ndarray]:
     opponent_moves = []
     outcomes = []
     win_flags = []
+    probability_series = []
 
     for _ in range(rounds):
         a_move = agent.get_move()
@@ -248,6 +249,12 @@ def run_matchup(agent, opponent, rounds: int) -> Dict[str, np.ndarray]:
         opponent_moves.append(o_move)
         outcomes.append(outcome)
         win_flags.append(1.0 if outcome == "WIN" else 0.0)
+
+        # Track probability predictions if available
+        if hasattr(agent, "probabilistic_modeller") and agent.probabilistic_modeller.probability_history:
+            probability_series.append(dict(agent.probabilistic_modeller.probability_history[-1]))
+        elif hasattr(agent, "probability_history") and agent.probability_history:
+            probability_series.append(dict(agent.probability_history[-1]))
 
     win_flags_arr = np.array(win_flags)
     wins = outcomes.count("WIN")
@@ -263,6 +270,7 @@ def run_matchup(agent, opponent, rounds: int) -> Dict[str, np.ndarray]:
         "tie_rate": ties / rounds,
         "win_flags": win_flags_arr,
         "outcomes": outcomes,
+        "probabilities": probability_series,
     }
 
 
@@ -282,81 +290,146 @@ def plot_simulation_results(
     output_path: str = "docs/winrate_plot.png",
     window: int = 50,
 ) -> None:
-    """Generate and save publication-quality rolling win-rate comparison plots."""
+    """Generate and save publication-quality rolling win-rate comparison plots across all opponents."""
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     num_opponents = len(results)
-    fig, axes = plt.subplots(1, num_opponents, figsize=(6 * num_opponents, 5), sharey=True)
+    cols = 4 if num_opponents >= 4 else num_opponents
+    rows = math.ceil(num_opponents / cols)
 
-    if num_opponents == 1:
-        axes = [axes]
+    fig, axes = plt.subplots(rows, cols, figsize=(5.2 * cols, 4.2 * rows), sharey=True)
+    if not isinstance(axes, np.ndarray):
+        axes = np.array([axes])
+    axes_flat = axes.flatten()
 
-    # Clean modern styling
-    plt.style.use("seaborn-v0_8-whitegrid" if "seaborn-v0_8-whitegrid" in plt.style.available else "default")
+    plt.style.use(
+        "seaborn-v0_8-whitegrid"
+        if "seaborn-v0_8-whitegrid" in plt.style.available
+        else "default"
+    )
 
-    for ax, res in zip(axes, results):
+    x_axis = np.arange(1, rounds + 1)
+
+    for i, res in enumerate(results):
+        ax = axes_flat[i]
         opp_name = res["opponent_name"]
-        adaptive_rolling = calculate_rolling_win_rate(res["adaptive"]["win_flags"], window=window)
-        random_rolling = calculate_rolling_win_rate(res["random"]["win_flags"], window=window)
-        x_axis = np.arange(1, rounds + 1)
+        adaptive_rolling = calculate_rolling_win_rate(
+            res["adaptive"]["win_flags"], window=window
+        )
+        random_rolling = calculate_rolling_win_rate(
+            res["random"]["win_flags"], window=window
+        )
 
-        # Plot curves
         ax.plot(
             x_axis,
             adaptive_rolling * 100,
-            label=f"Adaptive Agent (Order-2)",
-            color="#1f77b4",
-            linewidth=2.2,
+            label="Probabilistic Agent",
+            color="#0284c7",
+            linewidth=2.0,
         )
         ax.plot(
             x_axis,
             random_rolling * 100,
-            label="Random Baseline Agent",
-            color="#d62728",
+            label="Random Baseline",
+            color="#ef4444",
             linestyle="--",
-            linewidth=1.8,
+            linewidth=1.6,
             alpha=0.8,
         )
-
-        # Reference baseline at 33.3%
         ax.axhline(
             y=33.33,
-            color="#7f7f7f",
+            color="#64748b",
             linestyle=":",
-            linewidth=1.5,
-            label="Nash Expected (33.3%)",
+            linewidth=1.3,
+            label="Nash Eq (33.3%)",
         )
 
-        ax.set_title(f"vs. {opp_name}", fontsize=13, fontweight="bold", pad=12)
-        ax.set_xlabel("Rounds", fontsize=11)
+        ax.set_title(f"vs. {opp_name}", fontsize=11, fontweight="bold", pad=8)
+        ax.set_xlabel("Rounds", fontsize=9.5)
         ax.set_ylim(-5, 105)
-        ax.grid(True, linestyle="--", alpha=0.5)
+        ax.grid(True, linestyle="--", alpha=0.4)
 
-        # Subtitle metrics box
         delta_str = f"Δ: {res['delta_win_rate'] * 100:+.1f}%"
         ax.text(
-            0.05,
+            0.04,
             0.92,
-            f"Adaptive: {res['adaptive']['win_rate'] * 100:.1f}%\nBaseline: {res['random']['win_rate'] * 100:.1f}%\n{delta_str}",
+            f"Agent: {res['adaptive']['win_rate'] * 100:.1f}%\nBase: {res['random']['win_rate'] * 100:.1f}%\n{delta_str}",
             transform=ax.transAxes,
-            fontsize=9.5,
+            fontsize=8.5,
             verticalalignment="top",
-            bbox=dict(boxstyle="round,pad=0.4", facecolor="white", edgecolor="#cccccc", alpha=0.9),
+            bbox=dict(
+                boxstyle="round,pad=0.3",
+                facecolor="white",
+                edgecolor="#cbd5e1",
+                alpha=0.9,
+            ),
         )
 
-    axes[0].set_ylabel(f"Rolling Win Rate (%) [Window={window}]", fontsize=11)
-    axes[0].legend(loc="lower right", frameon=True, fontsize=9.5)
+    # Turn off unused subplots if any
+    for j in range(num_opponents, len(axes_flat)):
+        axes_flat[j].axis("off")
+
+    axes_flat[0].set_ylabel(f"Rolling Win Rate (%) [W={window}]", fontsize=10)
+    axes_flat[0].legend(loc="lower right", frameon=True, fontsize=8)
 
     plt.suptitle(
-        f"Rock-Paper-Scissors Opponent Modeling Benchmark ({rounds} Rounds)",
-        fontsize=15,
+        f"Probabilistic Opponent Modeller Benchmark: Win-Rate vs. 8 Opponent Classes ({rounds} Rounds)",
+        fontsize=14,
         fontweight="bold",
-        y=1.02,
+        y=0.99,
     )
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
     plt.close()
-    print(f"\n[Plot Saved] Visualization successfully exported to: {output_path}")
+    print(f"\n[Plot Saved] Rolling win-rate curves saved to: {output_path}")
+
+
+def plot_probability_distribution(
+    key_matchups: Dict[str, List[Dict[str, float]]],
+    output_path: str = "docs/probability_plot.png",
+    rounds_to_display: int = 150,
+) -> None:
+    """Generate and save publication-quality probability distribution evolution plots."""
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+    matchup_names = list(key_matchups.keys())
+    n = len(matchup_names)
+
+    fig, axes = plt.subplots(n, 1, figsize=(10, 3.2 * n), sharex=True)
+    if n == 1:
+        axes = [axes]
+
+    colors = {"R": "#ef4444", "P": "#3b82f6", "S": "#10b981"}
+
+    for ax, name in zip(axes, matchup_names):
+        probs_list = key_matchups[name][:rounds_to_display]
+        r_vals = [p.get("R", 0.33) for p in probs_list]
+        p_vals = [p.get("P", 0.33) for p in probs_list]
+        s_vals = [p.get("S", 0.33) for p in probs_list]
+        x = np.arange(1, len(probs_list) + 1)
+
+        ax.plot(x, r_vals, label="P(Rock)", color=colors["R"], linewidth=1.8)
+        ax.plot(x, p_vals, label="P(Paper)", color=colors["P"], linewidth=1.8)
+        ax.plot(x, s_vals, label="P(Scissors)", color=colors["S"], linewidth=1.8)
+        ax.axhline(y=0.3333, color="#94a3b8", linestyle=":", linewidth=1.2, label="Uniform Prior (1/3)")
+
+        ax.set_title(f"Predicted Probability Distribution Evolution: vs. {name}", fontsize=11, fontweight="bold")
+        ax.set_ylabel("Probability", fontsize=10)
+        ax.set_ylim(-0.05, 1.05)
+        ax.grid(True, linestyle="--", alpha=0.5)
+        ax.legend(loc="upper right", frameon=True, fontsize=8.5, ncol=4)
+
+    axes[-1].set_xlabel("Rounds (Initial Convergence Phase)", fontsize=10)
+    plt.suptitle(
+        "Bayesian Posterior Predictive Probabilities P(M_t) Under Uncertainty",
+        fontsize=13,
+        fontweight="bold",
+        y=0.995,
+    )
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"[Plot Saved] Probability evolution visualization saved to: {output_path}")
 
 
 def run_benchmark(
@@ -364,15 +437,22 @@ def run_benchmark(
     order: int = 2,
     seed: Optional[int] = 42,
     plot_path: str = "docs/winrate_plot.png",
+    prob_plot_path: str = "docs/probability_plot.png",
 ) -> List[Dict]:
-    """Execute complete benchmark suite across all baseline opponents and print results table."""
+    """Execute complete 1000-round benchmark suite across Random, Rule-Based, Bayesian, and CSP opponents."""
     opponents = [
         PureRandomOpponent(seed=seed),
         RotatingOpponent(cycle=["R", "P", "S"]),
         BiasedStreakOpponent(weights={"R": 0.50, "P": 0.30, "S": 0.20}, streak_prob=0.60, seed=seed),
+        WinStayLoseShiftOpponent(seed=seed),
+        CyclingOpponent(direction="forward", seed=seed),
+        CopycatOpponent(mode="direct", seed=seed),
+        BayesianOpponent(prior_alpha=1.0, seed=seed),
+        CSPAdversaryOpponent(length=rounds, max_trans_prob=0.45, seed=seed),
     ]
 
     benchmark_results = []
+    key_prob_matchups = {}
 
     for opponent in opponents:
         adaptive_agent = AdaptiveAgent(order=order, seed=seed)
@@ -383,23 +463,30 @@ def run_benchmark(
 
         delta = adaptive_res["win_rate"] - random_res["win_rate"]
 
-        benchmark_results.append(
-            {
-                "opponent_name": opponent.name,
-                "adaptive": adaptive_res,
-                "random": random_res,
-                "delta_win_rate": delta,
-            }
-        )
+        res_dict = {
+            "opponent_name": opponent.name,
+            "adaptive": adaptive_res,
+            "random": random_res,
+            "delta_win_rate": delta,
+        }
+        benchmark_results.append(res_dict)
+
+        # Save probability trajectories for representative opponents
+        if opponent.name in [
+            "Human-Like Biased",
+            "Win-Stay / Lose-Shift",
+            "CSP Constraint Adversary",
+        ]:
+            key_prob_matchups[opponent.name] = adaptive_res["probabilities"]
 
     # Print Formatted Results Table
-    header_fmt = "| {:<22} | {:>14} | {:>14} | {:>14} | {:>14} | {:>14} |"
-    row_fmt = "| {:<22} | {:>13.1f}% | {:>13.1f}% | {:>13.1f}% | {:>13.1f}% | {:>+13.1f}% |"
-    separator = "+------------------------+----------------+----------------+----------------+----------------+----------------+"
+    header_fmt = "| {:<28} | {:>14} | {:>14} | {:>14} | {:>14} | {:>14} |"
+    row_fmt = "| {:<28} | {:>13.1f}% | {:>13.1f}% | {:>13.1f}% | {:>13.1f}% | {:>+13.1f}% |"
+    separator = "+------------------------------+----------------+----------------+----------------+----------------+----------------+"
 
-    print("\n" + "=" * 100)
-    print(f"  RPS OPPONENT MODELING BENCHMARK RESULTS (Rounds: {rounds}, Markov Order: {order}, Seed: {seed})")
-    print("=" * 100)
+    print("\n" + "=" * 110)
+    print(f"  PROBABILISTIC OPPONENT MODELLER: 1000-ROUND BENCHMARK (Order: {order}, Seed: {seed})")
+    print("=" * 110)
     print(separator)
     print(
         header_fmt.format(
@@ -429,45 +516,49 @@ def run_benchmark(
         " Note: Delta Win% = (Adaptive Agent Win Rate) - (Random Baseline Agent Win Rate)\n"
     )
 
-    # Generate Plot
+    # Generate Both Plots
     plot_simulation_results(benchmark_results, rounds=rounds, output_path=plot_path)
+    if key_prob_matchups:
+        plot_probability_distribution(key_prob_matchups, output_path=prob_plot_path)
 
     return benchmark_results
 
 
 def play_interactive(order: int = 2) -> None:
-    """Run an interactive live console session allowing a human to play against the adaptive agent."""
-    agent = AdaptiveAgent(order=order)
+    """Run an interactive live console session with fair-play cryptographic verification and explainability."""
+    agent = ProbabilisticOpponentModeller(order=order)
     human_wins = 0
     agent_wins = 0
     ties = 0
     round_num = 1
 
-    print("\n" + "=" * 65)
-    print("  LIVE INTERACTIVE MATCH: HUMAN vs. ADAPTIVE MARKOV AGENT")
-    print(f"  (Markov Order: {order} with Hierarchical Backoff)")
-    print("=" * 65)
+    print("\n" + "=" * 75)
+    print("  LIVE ARENA: HUMAN vs. PROBABILISTIC OPPONENT MODELLER")
+    print(f"  (Bayesian Dirichlet Model + Symbolic Reasoning + SHA-256 Fair Play)")
+    print("=" * 75)
     print("  Controls: [R]ock, [P]aper, [S]cissors, or [Q]uit")
-    print("-" * 65)
+    print("-" * 75)
 
     try:
         while True:
-            user_input = input(f"\n[Round {round_num}] Your move (R/P/S or Q): ").strip().upper()
+            # 1. Agent plans move and produces cryptographic commitment hash BEFORE human moves
+            agent_move, commitment_hash = agent.plan_move()
+            print(f"\n[Round {round_num}]")
+            print(f"  [Fair-Play] AI SHA-256 Commitment: {commitment_hash[:16]}... (Move locked!)")
+
+            user_input = input("  Your move (R/P/S or Q): ").strip().upper()
             if user_input in ["Q", "QUIT", "EXIT"]:
                 break
             if user_input not in MOVES:
-                print("  [!] Invalid input. Please enter 'R', 'P', 'S', or 'Q' to quit.")
+                print("  [!] Invalid input. Choose 'R', 'P', 'S', or 'Q' to quit.")
                 continue
 
-            # Agent predicts and picks counter-move
-            predicted_opponent_move = agent.model.predict_next_move()
-            agent_move = COUNTER_MOVES[predicted_opponent_move]
+            # 2. Reveal commitment and update model
+            obs = agent.observe(user_input)
+            outcome = obs["outcome"]
+            salt = obs["revealed_salt"]
+            expl = obs["explainability"]
 
-            # Evaluate outcome
-            outcome = evaluate_round(agent_move, user_input)
-            agent.observe(user_input)
-
-            # Record stats
             if outcome == "WIN":
                 agent_wins += 1
                 result_str = "\033[91mAI WINS!\033[0m"
@@ -478,36 +569,37 @@ def play_interactive(order: int = 2) -> None:
                 ties += 1
                 result_str = "\033[93mTIE!\033[0m"
 
-            total_games = human_wins + agent_wins + ties
-            ai_winrate = (agent_wins / total_games) * 100
+            total = human_wins + agent_wins + ties
+            probs = expl["predicted_probabilities"]
 
             print(f"  -> You played: {MOVE_NAMES[user_input]} ({user_input})")
-            print(f"  -> AI predicted: {MOVE_NAMES[predicted_opponent_move]} ({predicted_opponent_move}) | AI played: {MOVE_NAMES[agent_move]} ({agent_move})")
-            print(f"  -> Result: {result_str}")
-            print(f"  [Score] You: {human_wins} | AI: {agent_wins} | Ties: {ties} (AI Win-Rate: {ai_winrate:.1f}%)")
+            print(f"  -> AI revealed: {MOVE_NAMES[agent_move]} ({agent_move}) | Salt: {salt[:8]}...")
+            print(f"  -> Verification: {'✓ PASSED (Zero-peeking confirmed)' if obs['verification_passed'] else '✗ FAILED'}")
+            print(f"  -> Predicted Opponent Distribution: R:{probs['R']:.1%} | P:{probs['P']:.1%} | S:{probs['S']:.1%}")
+            print(f"  -> AI Explainability: {expl['explanation']}")
+            print(f"  -> Outcome: {result_str}")
+            print(f"  [Scoreboard] You: {human_wins} | AI: {agent_wins} | Ties: {ties} (AI Win-Rate: {(agent_wins/total)*100:.1f}%)")
 
             round_num += 1
 
     except (KeyboardInterrupt, EOFError):
         pass
 
-    print("\n" + "=" * 65)
+    print("\n" + "=" * 75)
     print("  MATCH SUMMARY")
-    print("=" * 65)
+    print("=" * 75)
     total_games = human_wins + agent_wins + ties
     if total_games > 0:
         print(f"  Total Rounds Played : {total_games}")
         print(f"  Your Wins           : {human_wins} ({(human_wins/total_games)*100:.1f}%)")
         print(f"  AI Wins             : {agent_wins} ({(agent_wins/total_games)*100:.1f}%)")
         print(f"  Ties                : {ties} ({(ties/total_games)*100:.1f}%)")
-    else:
-        print("  No rounds played.")
-    print("=" * 65 + "\n")
+    print("=" * 75 + "\n")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Rock-Paper-Scissors Adaptive Opponent Modeling Simulation"
+        description="Rock-Paper-Scissors Probabilistic Opponent Modeling AI"
     )
     parser.add_argument(
         "--rounds",
@@ -531,13 +623,19 @@ def main():
         "--plot-path",
         type=str,
         default="docs/winrate_plot.png",
-        help="Destination path for the generated plot (default: docs/winrate_plot.png)",
+        help="Destination path for rolling win-rate plot (default: docs/winrate_plot.png)",
+    )
+    parser.add_argument(
+        "--prob-plot-path",
+        type=str,
+        default="docs/probability_plot.png",
+        help="Destination path for probability evolution plot (default: docs/probability_plot.png)",
     )
     parser.add_argument(
         "-i",
         "--interactive",
         action="store_true",
-        help="Play live interactively in the console against the adaptive agent",
+        help="Play live interactively in console against the adaptive agent",
     )
 
     args = parser.parse_args()
@@ -550,9 +648,9 @@ def main():
             order=args.order,
             seed=args.seed,
             plot_path=args.plot_path,
+            prob_plot_path=args.prob_plot_path,
         )
 
 
 if __name__ == "__main__":
     main()
-

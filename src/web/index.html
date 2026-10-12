@@ -3,22 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RPS Opponent Modeling — Markov Agent</title>
+  <title>RPS AI — Probabilistic Opponent Modeller & Decision Arena</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-primary: #0a0d14;
-      --bg-card: rgba(18, 24, 38, 0.75);
-      --bg-card-border: rgba(255, 255, 255, 0.08);
-      --accent-blue: #38bdf8;
+      --bg-primary: #070a12;
+      --bg-card: rgba(15, 23, 42, 0.72);
+      --bg-card-hover: rgba(22, 33, 58, 0.85);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-highlight: rgba(56, 189, 248, 0.35);
+      --accent-cyan: #38bdf8;
+      --accent-blue: #3b82f6;
       --accent-purple: #a855f7;
-      --accent-green: #22c55e;
+      --accent-green: #10b981;
       --accent-red: #ef4444;
       --accent-amber: #f59e0b;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
+      --font-main: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
     }
 
     * {
@@ -28,61 +33,135 @@
     }
 
     body {
-      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: radial-gradient(circle at 50% 0%, #172033 0%, #0a0d14 70%);
+      font-family: var(--font-main);
+      background: radial-gradient(circle at 50% 0%, #111a2e 0%, #070a12 65%);
       color: var(--text-main);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 24px 16px;
+      padding: 24px 16px 48px;
     }
 
     header {
       text-align: center;
-      margin-bottom: 28px;
+      margin-bottom: 24px;
+      max-width: 900px;
+      width: 100%;
+    }
+
+    .badge-bar {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
     }
 
     .badge {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       font-size: 0.75rem;
       font-weight: 600;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
-      padding: 4px 12px;
+      padding: 5px 12px;
       border-radius: 9999px;
-      background: rgba(56, 189, 248, 0.15);
-      color: var(--accent-blue);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      margin-bottom: 8px;
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+
+    .badge.purple {
+      background: rgba(168, 85, 247, 0.12);
+      color: var(--accent-purple);
+      border-color: rgba(168, 85, 247, 0.25);
+    }
+
+    .badge.green {
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--accent-green);
+      border-color: rgba(16, 185, 129, 0.25);
     }
 
     h1 {
-      font-size: 2.2rem;
+      font-size: 2.3rem;
       font-weight: 800;
-      background: linear-gradient(135deg, #ffffff 30%, var(--accent-blue) 100%);
+      background: linear-gradient(135deg, #ffffff 25%, #38bdf8 65%, #a855f7 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
     }
 
     p.subtitle {
       color: var(--text-muted);
       font-size: 0.95rem;
-      max-width: 600px;
-      margin: 0 auto;
+      line-height: 1.5;
     }
 
-    .container {
+    /* Privacy Bar */
+    .privacy-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       width: 100%;
-      max-width: 1100px;
-      display: grid;
-      grid-template-columns: 1.2fr 1fr;
-      gap: 24px;
+      max-width: 1200px;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 10px 18px;
+      margin-bottom: 24px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
     }
 
-    @media (max-width: 900px) {
-      .container {
+    .privacy-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .btn-privacy {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-privacy:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: var(--accent-cyan);
+    }
+
+    .btn-purge {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #fca5a5;
+    }
+
+    .btn-purge:hover {
+      background: rgba(239, 68, 68, 0.28);
+    }
+
+    /* Layout Grid */
+    .dashboard-grid {
+      width: 100%;
+      max-width: 1200px;
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 980px) {
+      .dashboard-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -90,511 +169,1089 @@
     .card {
       background: var(--bg-card);
       backdrop-filter: blur(16px);
-      border: 1px solid var(--bg-card-border);
+      border: 1px solid var(--border-subtle);
       border-radius: 20px;
       padding: 24px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.45);
       position: relative;
       overflow: hidden;
     }
 
     .card-title {
-      font-size: 1.15rem;
+      font-size: 1.1rem;
       font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 18px;
+    }
+
+    .card-title span.tag {
+      font-size: 0.75rem;
+      font-weight: 500;
+      font-family: var(--font-mono);
+      background: rgba(255, 255, 255, 0.06);
+      padding: 3px 8px;
+      border-radius: 6px;
+      color: var(--accent-cyan);
+    }
+
+    /* Arena Player Area */
+    .arena-action-box {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .move-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 20px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      user-select: none;
+    }
+
+    .move-btn:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--accent-cyan);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(56, 189, 248, 0.2);
+    }
+
+    .move-btn:active {
+      transform: translateY(0);
+    }
+
+    .move-icon {
+      font-size: 2.4rem;
+      transition: transform 0.2s;
+    }
+
+    .move-btn:hover .move-icon {
+      transform: scale(1.15);
+    }
+
+    .move-label {
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .move-hotkey {
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.07);
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+
+    /* Fair Play Cryptographic Card */
+    .fair-play-banner {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+    }
+
+    .fair-play-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 600;
+      color: var(--accent-green);
+      margin-bottom: 6px;
+    }
+
+    .hash-display {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      word-break: break-all;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Round Outcome Banner */
+    .outcome-box {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 16px;
+      text-align: center;
+      margin-bottom: 20px;
+      min-height: 110px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .outcome-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      margin-bottom: 6px;
+    }
+
+    .outcome-title.win {
+      color: var(--accent-red); /* AI Won */
+    }
+
+    .outcome-title.loss {
+      color: var(--accent-green); /* Human Won */
+    }
+
+    .outcome-title.tie {
+      color: var(--accent-amber);
+    }
+
+    .outcome-details {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    .outcome-explanation {
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      margin-top: 6px;
+      font-style: italic;
+      max-width: 90%;
     }
 
     /* Scoreboard */
     .scoreboard {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      margin-bottom: 24px;
-    }
-
-    .score-item {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 14px;
-      padding: 12px;
+      gap: 10px;
       text-align: center;
     }
 
-    .score-label {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      font-weight: 600;
-      color: var(--text-muted);
-      margin-bottom: 4px;
+    .score-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 12px 6px;
     }
 
     .score-val {
-      font-size: 1.5rem;
+      font-size: 1.45rem;
       font-weight: 800;
-      font-family: 'JetBrains Mono', monospace;
+      font-family: var(--font-mono);
+      margin-bottom: 2px;
     }
 
-    .score-val.ai { color: var(--accent-red); }
-    .score-val.you { color: var(--accent-green); }
+    .score-val.human { color: var(--accent-green); }
+    .score-val.ai { color: var(--accent-cyan); }
     .score-val.tie { color: var(--accent-amber); }
-    .score-val.rate { color: var(--accent-blue); }
+    .score-val.rate { color: #f43f5e; }
 
-    /* Arena & Move Selection */
-    .arena-display {
+    .score-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* Bayesian Probabilities Panel */
+    .prob-bar-group {
+      margin-bottom: 16px;
+    }
+
+    .prob-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .prob-bar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      height: 12px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .prob-bar-fill {
+      height: 100%;
+      border-radius: 8px;
+      transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .prob-bar-fill.rock { background: linear-gradient(90deg, #f87171, #ef4444); }
+    .prob-bar-fill.paper { background: linear-gradient(90deg, #60a5fa, #3b82f6); }
+    .prob-bar-fill.scissors { background: linear-gradient(90deg, #34d399, #10b981); }
+
+    /* Expected Utility & Entropy */
+    .metrics-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .metric-box {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    .metric-box-title {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .metric-box-val {
+      font-size: 1.1rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--accent-cyan);
+    }
+
+    /* Strategy Reasoning Alert */
+    .reasoning-box {
+      background: rgba(168, 85, 247, 0.08);
+      border: 1px solid rgba(168, 85, 247, 0.25);
+      border-radius: 12px;
+      padding: 14px;
+      margin-top: 16px;
+    }
+
+    .reasoning-header {
       display: flex;
       align-items: center;
-      justify-content: space-around;
-      background: rgba(0, 0, 0, 0.25);
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      border-radius: 16px;
-      padding: 20px 10px;
+      justify-content: space-between;
+      color: var(--accent-purple);
+      font-weight: 700;
+      font-size: 0.88rem;
+      margin-bottom: 6px;
+    }
+
+    .reasoning-body {
+      font-size: 0.82rem;
+      color: #e2e8f0;
+      line-height: 1.4;
+    }
+
+    /* CSP Stress-Test Lab */
+    .full-width-card {
+      width: 100%;
+      max-width: 1200px;
       margin-bottom: 24px;
     }
 
-    .player-slot {
-      text-align: center;
+    .csp-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 18px;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
     }
 
-    .player-slot-name {
+    .csp-input-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       font-size: 0.85rem;
+    }
+
+    .csp-input-group input, .csp-input-group select {
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+    }
+
+    .btn-action {
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: #fff;
       font-weight: 600;
-      color: var(--text-muted);
-      margin-bottom: 8px;
+      font-size: 0.85rem;
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
     }
 
-    .move-icon-circle {
-      width: 76px;
-      height: 76px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.05);
-      border: 2px solid rgba(255, 255, 255, 0.1);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 2.2rem;
-      margin: 0 auto 8px;
-      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    .btn-action:hover {
+      filter: brightness(1.15);
+      transform: translateY(-1px);
     }
 
-    .move-label {
-      font-size: 0.9rem;
-      font-weight: 600;
-    }
-
-    .vs-divider {
-      font-size: 1.1rem;
-      font-weight: 800;
-      color: var(--text-muted);
-      opacity: 0.6;
-    }
-
-    .outcome-pill {
-      text-align: center;
-      font-size: 1rem;
-      font-weight: 800;
-      letter-spacing: 0.05em;
-      padding: 8px 16px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      min-height: 42px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .outcome-win { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); border-color: rgba(239, 68, 68, 0.3); }
-    .outcome-loss { background: rgba(34, 197, 94, 0.15); color: var(--accent-green); border-color: rgba(34, 197, 94, 0.3); }
-    .outcome-tie { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border-color: rgba(245, 158, 11, 0.3); }
-
-    /* Action Buttons */
-    .actions-grid {
+    .csp-audit-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 12px;
       margin-bottom: 16px;
     }
 
-    .btn-move {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
-      padding: 16px 8px;
-      color: var(--text-main);
-      font-family: inherit;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    @media (max-width: 768px) {
+      .csp-audit-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
     }
 
-    .btn-move:hover {
-      background: rgba(56, 189, 248, 0.12);
-      border-color: var(--accent-blue);
-      transform: translateY(-3px);
-      box-shadow: 0 8px 20px rgba(56, 189, 248, 0.25);
-    }
-
-    .btn-move:active {
-      transform: translateY(1px);
-    }
-
-    .btn-move .emoji {
-      font-size: 2.2rem;
-    }
-
-    .btn-move .name {
-      font-weight: 700;
-      font-size: 0.95rem;
-    }
-
-    .btn-move .key-hint {
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      font-family: 'JetBrains Mono', monospace;
-      padding: 2px 6px;
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 4px;
-    }
-
-    .controls-bar {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-    }
-
-    .btn-secondary {
-      background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      color: var(--text-muted);
-      padding: 6px 14px;
-      border-radius: 8px;
-      font-size: 0.8rem;
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.2s;
-    }
-
-    .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--text-main);
-    }
-
-    /* History & Markov Inspector */
-    .history-list {
-      max-height: 180px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .history-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 6px 12px;
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 8px;
-      font-size: 0.85rem;
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .markov-card {
-      margin-top: 16px;
-      background: rgba(0, 0, 0, 0.2);
-      border: 1px solid rgba(255, 255, 255, 0.05);
+    .audit-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-subtle);
       border-radius: 12px;
       padding: 12px;
+      text-align: center;
+    }
+
+    .audit-card.pass {
+      border-color: rgba(16, 185, 129, 0.35);
+      background: rgba(16, 185, 129, 0.05);
+    }
+
+    .audit-status {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--accent-green);
+      margin-bottom: 4px;
+    }
+
+    .audit-title {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .csp-seq-strip {
+      font-family: var(--font-mono);
       font-size: 0.8rem;
-    }
-
-    .markov-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 8px;
-      margin-top: 8px;
-    }
-
-    .markov-item {
-      background: rgba(255, 255, 255, 0.03);
-      padding: 8px;
+      color: var(--text-muted);
+      background: rgba(0, 0, 0, 0.35);
+      padding: 10px 14px;
       border-radius: 8px;
-      font-family: 'JetBrains Mono', monospace;
+      overflow-x: auto;
+      white-space: nowrap;
+      border: 1px solid var(--border-subtle);
     }
 
-    /* Benchmark Plot Tab */
-    .benchmark-img {
+    /* Benchmark Dashboard */
+    .benchmark-table {
       width: 100%;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      margin-top: 12px;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin-bottom: 20px;
     }
 
-    /* Tabs */
-    .tabs {
+    .benchmark-table th {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .benchmark-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      font-family: var(--font-mono);
+    }
+
+    .benchmark-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .delta-positive { color: var(--accent-green); font-weight: 700; }
+    .delta-neutral { color: var(--text-muted); }
+    .delta-negative { color: var(--accent-amber); font-weight: 700; }
+
+    /* Visualizer Tabs */
+    .tab-bar {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       margin-bottom: 16px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 10px;
     }
 
     .tab-btn {
-      background: transparent;
+      background: none;
       border: none;
       color: var(--text-muted);
-      font-family: inherit;
-      font-size: 0.9rem;
       font-weight: 600;
-      padding: 6px 12px;
-      border-radius: 8px;
+      font-size: 0.9rem;
+      padding: 6px 14px;
       cursor: pointer;
+      border-radius: 6px;
       transition: all 0.2s;
     }
 
     .tab-btn.active {
-      background: rgba(56, 189, 248, 0.15);
-      color: var(--accent-blue);
+      color: var(--accent-cyan);
+      background: rgba(56, 189, 248, 0.12);
+    }
+
+    .plot-container {
+      width: 100%;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+      background: #000;
+      text-align: center;
+    }
+
+    .plot-img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 999;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-card {
+      background: #0f172a;
+      border: 1px solid var(--border-highlight);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 580px;
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      color: var(--text-main);
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    .modal-content {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .modal-content h3 {
+      color: var(--text-main);
+      font-size: 1rem;
+      margin: 12px 0 6px;
     }
   </style>
 </head>
 <body>
 
+  <!-- Header -->
   <header>
-    <div class="badge">Adaptive Opponent Modeling</div>
-    <h1>Rock-Paper-Scissors AI Arena</h1>
-    <p class="subtitle">An Order-2 Markov Chain Agent with hierarchical backoff that learns and counters your move patterns in real time.</p>
+    <div class="badge-bar">
+      <span class="badge">CSP Adversary Layer</span>
+      <span class="badge purple">Knowledge & Reasoning</span>
+      <span class="badge">Bayesian Dirichlet Model</span>
+      <span class="badge green">Zero-Peeking Fair Play</span>
+    </div>
+    <h1>Rock-Paper-Scissors Probabilistic AI</h1>
+    <p class="subtitle">
+      Advanced opponent modeling architecture featuring Constraint Satisfaction Problem stress-testing, 
+      symbolic rule inference, Dirichlet-Multinomial Bayesian updates, and cryptographic fair-play verification.
+    </p>
   </header>
 
-  <div class="container">
-    <!-- Left Column: Arena & Play Controls -->
+  <!-- Privacy & Fair-Play Governance Bar -->
+  <div class="privacy-bar">
+    <div>
+      <span id="consent-status-badge">🛡️ Privacy Status: Ephemeral (Zero-Storage)</span>
+    </div>
+    <div class="privacy-actions">
+      <button class="btn-privacy" onclick="toggleConsent()">Toggle Telemetry Opt-In</button>
+      <button class="btn-privacy" onclick="openPrivacyModal()">Privacy Policy</button>
+      <button class="btn-privacy btn-purge" onclick="purgeSessionData()">Wipe Session (Right to be Forgotten)</button>
+    </div>
+  </div>
+
+  <!-- Dashboard Grid -->
+  <div class="dashboard-grid">
+
+    <!-- Card 1: Interactive Arena -->
     <div class="card">
       <div class="card-title">
-        <span>Game Arena</span>
-        <div class="controls-bar">
-          <button class="btn-secondary" onclick="resetGame()">Reset Match</button>
+        <span>Interactive Arena</span>
+        <span class="tag">Order-2 Adaptive AI</span>
+      </div>
+
+      <!-- Fair Play Commitment Proof -->
+      <div class="fair-play-banner">
+        <div class="fair-play-header">
+          <span>🔒 Cryptographic Fair-Play Commitment (SHA-256)</span>
+          <span id="fair-play-status">Verified: Zero-Peeking</span>
         </div>
+        <div class="hash-display" id="commitment-hash-text">
+          Pending move commitment...
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="arena-action-box">
+        <button class="move-btn" onclick="playRound('R')">
+          <span class="move-icon">🪨</span>
+          <span class="move-label">Rock</span>
+          <span class="move-hotkey">[R]</span>
+        </button>
+        <button class="move-btn" onclick="playRound('P')">
+          <span class="move-icon">📄</span>
+          <span class="move-label">Paper</span>
+          <span class="move-hotkey">[P]</span>
+        </button>
+        <button class="move-btn" onclick="playRound('S')">
+          <span class="move-icon">✂️</span>
+          <span class="move-label">Scissors</span>
+          <span class="move-hotkey">[S]</span>
+        </button>
+      </div>
+
+      <!-- Outcome Banner -->
+      <div class="outcome-box" id="outcome-box">
+        <div class="outcome-title" id="outcome-title">Select Your Move to Begin</div>
+        <div class="outcome-details" id="outcome-details">AI will commit to its action prior to observing your move.</div>
+        <div class="outcome-explanation" id="outcome-explanation"></div>
       </div>
 
       <!-- Scoreboard -->
       <div class="scoreboard">
-        <div class="score-item">
-          <div class="score-label">Rounds</div>
-          <div class="score-val" id="score-rounds">0</div>
-        </div>
-        <div class="score-item">
-          <div class="score-label">AI Wins</div>
-          <div class="score-val ai" id="score-ai">0</div>
-        </div>
-        <div class="score-item">
+        <div class="score-card">
+          <div class="score-val human" id="score-human">0</div>
           <div class="score-label">Your Wins</div>
-          <div class="score-val you" id="score-you">0</div>
         </div>
-        <div class="score-item">
-          <div class="score-label">AI Win%</div>
-          <div class="score-val rate" id="score-rate">0.0%</div>
+        <div class="score-card">
+          <div class="score-val ai" id="score-ai">0</div>
+          <div class="score-label">AI Wins</div>
         </div>
-      </div>
-
-      <!-- Arena Display -->
-      <div class="arena-display">
-        <div class="player-slot">
-          <div class="player-slot-name">YOU</div>
-          <div class="move-icon-circle" id="player-move-icon">❔</div>
-          <div class="move-label" id="player-move-label">Choose move</div>
+        <div class="score-card">
+          <div class="score-val tie" id="score-ties">0</div>
+          <div class="score-label">Ties</div>
         </div>
-        <div class="vs-divider">VS</div>
-        <div class="player-slot">
-          <div class="player-slot-name">MARKOV AGENT</div>
-          <div class="move-icon-circle" id="ai-move-icon">🤖</div>
-          <div class="move-label" id="ai-move-label">Waiting...</div>
-        </div>
-      </div>
-
-      <div class="outcome-pill" id="outcome-pill">Choose your move to begin match</div>
-
-      <!-- Move Buttons -->
-      <div class="actions-grid">
-        <button class="btn-move" onclick="playMove('R')">
-          <span class="emoji">🪨</span>
-          <span class="name">Rock</span>
-          <span class="key-hint">Press R</span>
-        </button>
-        <button class="btn-move" onclick="playMove('P')">
-          <span class="emoji">📄</span>
-          <span class="name">Paper</span>
-          <span class="key-hint">Press P</span>
-        </button>
-        <button class="btn-move" onclick="playMove('S')">
-          <span class="emoji">✂️</span>
-          <span class="name">Scissors</span>
-          <span class="key-hint">Press S</span>
-        </button>
-      </div>
-
-      <!-- AI Internal Prediction Insight -->
-      <div class="markov-card">
-        <div style="font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">AI Internal Inference</div>
-        <div id="ai-prediction-text" style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;">
-          No moves observed yet. Initializing backoff model...
+        <div class="score-card">
+          <div class="score-val rate" id="score-ai-rate">0.0%</div>
+          <div class="score-label">AI Win Rate</div>
         </div>
       </div>
     </div>
 
-    <!-- Right Column: Model State & Benchmarks -->
+    <!-- Card 2: Probability & Reasoning Engine -->
     <div class="card">
-      <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('history')">Live Match History</button>
-        <button class="tab-btn" onclick="switchTab('markov')">Markov Transitions</button>
-        <button class="tab-btn" onclick="switchTab('benchmark')">Simulation Benchmark</button>
+      <div class="card-title">
+        <span>Probabilistic Opponent Modeller</span>
+        <span class="tag">Dirichlet Posterior</span>
       </div>
 
-      <!-- Tab 1: Live History -->
-      <div id="tab-history">
-        <div class="history-list" id="history-list">
-          <div style="text-align: center; color: var(--text-muted); padding: 20px;">No rounds played yet. Make your first move!</div>
+      <!-- Bayesian Predicted Probabilities -->
+      <div class="prob-bar-group">
+        <div class="prob-label-row">
+          <span>P(Rock)</span>
+          <span id="prob-rock-val" style="color:#f87171;">33.3%</span>
+        </div>
+        <div class="prob-bar-track">
+          <div class="prob-bar-fill rock" id="prob-rock-bar" style="width: 33.3%;"></div>
         </div>
       </div>
 
-      <!-- Tab 2: Markov Transitions -->
-      <div id="tab-markov" style="display: none;">
-        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">Order-2 Markov Transition States: (Move_{t-2}, Move_{t-1}) &rarr; Move_t counts</div>
-        <div class="markov-grid" id="order2-grid">
-          <div class="markov-item">No Order-2 contexts recorded yet</div>
+      <div class="prob-bar-group">
+        <div class="prob-label-row">
+          <span>P(Paper)</span>
+          <span id="prob-paper-val" style="color:#60a5fa;">33.3%</span>
+        </div>
+        <div class="prob-bar-track">
+          <div class="prob-bar-fill paper" id="prob-paper-bar" style="width: 33.3%;"></div>
         </div>
       </div>
 
-      <!-- Tab 3: Benchmark & Plot -->
-      <div id="tab-benchmark" style="display: none;">
-        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
-          1000-Round Benchmark Plot (Pure Random vs Rotating vs Human-Like Biased)
+      <div class="prob-bar-group">
+        <div class="prob-label-row">
+          <span>P(Scissors)</span>
+          <span id="prob-scissors-val" style="color:#34d399;">33.3%</span>
         </div>
-        <img src="/docs/winrate_plot.png" alt="RPS Opponent Modeling Benchmark" class="benchmark-img" onerror="this.alt='Run python src/rps_agent.py to generate plot';">
+        <div class="prob-bar-track">
+          <div class="prob-bar-fill scissors" id="prob-scissors-bar" style="width: 33.3%;"></div>
+        </div>
       </div>
+
+      <!-- Uncertainty & Expected Utilities -->
+      <div class="metrics-row">
+        <div class="metric-box">
+          <div class="metric-box-title">Shannon Entropy</div>
+          <div class="metric-box-val" id="metric-entropy">1.58 bits</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-box-title">Optimal Move (Max EU)</div>
+          <div class="metric-box-val" id="metric-optimal-move">Random</div>
+        </div>
+      </div>
+
+      <!-- Strategy Detection Alert -->
+      <div class="reasoning-box" id="reasoning-box">
+        <div class="reasoning-header">
+          <span>🧠 Rule Detection Engine</span>
+          <span id="strategy-badge">Searching...</span>
+        </div>
+        <div class="reasoning-body" id="strategy-explanation">
+          Observing early rounds to detect human cognitive heuristics (Win-Stay/Lose-Shift, Cycling, Mirroring).
+        </div>
+      </div>
+
+      <div style="margin-top: 18px; text-align: right;">
+        <button class="btn-privacy" onclick="resetGame()">Reset Match History</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CSP Stress-Test Lab -->
+  <div class="card full-width-card">
+    <div class="card-title">
+      <span>CSP Constraint-Based Adversary Lab</span>
+      <span class="tag">Backtracking Search</span>
+    </div>
+    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 16px;">
+      Generates adversarial move sequences via iterative backtracking under 3 rigorous constraints:
+      <strong>Equal Move Usage</strong>, <strong>No Triple Repeats</strong>, and <strong>Low Order-1 Predictability (P &le; 0.45)</strong>.
+    </p>
+
+    <div class="csp-controls">
+      <div class="csp-input-group">
+        <label>Sequence Length (N):</label>
+        <select id="csp-len-select">
+          <option value="150">150 Rounds</option>
+          <option value="300">300 Rounds</option>
+          <option value="1000" selected>1000 Rounds (Benchmark)</option>
+        </select>
+      </div>
+      <div class="csp-input-group">
+        <label>Max Transition P:</label>
+        <select id="csp-prob-select">
+          <option value="0.40">0.40 (High Uniformity)</option>
+          <option value="0.45" selected>0.45 (Standard Constraint)</option>
+          <option value="0.50">0.50 (Relaxed)</option>
+        </select>
+      </div>
+      <button class="btn-action" onclick="runCSPGenerator()">Generate CSP Sequence & Audit</button>
+    </div>
+
+    <!-- Audit Grid -->
+    <div class="csp-audit-grid" id="csp-audit-grid">
+      <div class="audit-card pass">
+        <div class="audit-status" id="audit-balance">✓ PASSED</div>
+        <div class="audit-title">Equal Move Usage (&plusmn;1)</div>
+      </div>
+      <div class="audit-card pass">
+        <div class="audit-status" id="audit-triples">0 Found</div>
+        <div class="audit-title">No Triple Repeats</div>
+      </div>
+      <div class="audit-card pass">
+        <div class="audit-status" id="audit-trans-prob">&le; 0.34</div>
+        <div class="audit-title">Max Transition Prob</div>
+      </div>
+      <div class="audit-card pass">
+        <div class="audit-status" id="audit-entropy">1.58 bits</div>
+        <div class="audit-title">Transition Entropy</div>
+      </div>
+    </div>
+
+    <div class="csp-seq-strip" id="csp-seq-display">
+      Click "Generate CSP Sequence & Audit" to run backtracking search...
+    </div>
+  </div>
+
+  <!-- Multi-Agent Benchmark Dashboard -->
+  <div class="card full-width-card">
+    <div class="card-title">
+      <span>1,000-Round Opponent Modeling Benchmark</span>
+      <button class="btn-action" onclick="triggerBenchmark()">Run 1000-Round Suite</button>
+    </div>
+
+    <table class="benchmark-table">
+      <thead>
+        <tr>
+          <th>Opponent Class & Strategy</th>
+          <th>Adaptive Win%</th>
+          <th>Adaptive Loss%</th>
+          <th>Adaptive Tie%</th>
+          <th>Random Base Win%</th>
+          <th>Delta Win% (&Delta;)</th>
+        </tr>
+      </thead>
+      <tbody id="benchmark-tbody">
+        <tr>
+          <td>Pure Random (Nash Equilibrium)</td>
+          <td>34.0%</td>
+          <td>31.9%</td>
+          <td>34.1%</td>
+          <td>33.0%</td>
+          <td class="delta-neutral">+1.0%</td>
+        </tr>
+        <tr>
+          <td>Rotating (R &rarr; P &rarr; S)</td>
+          <td>88.0%</td>
+          <td>6.0%</td>
+          <td>6.0%</td>
+          <td>32.0%</td>
+          <td class="delta-positive">+56.0%</td>
+        </tr>
+        <tr>
+          <td>Human-Like Biased (50/30/20 + Streak)</td>
+          <td>73.6%</td>
+          <td>12.5%</td>
+          <td>13.9%</td>
+          <td>33.2%</td>
+          <td class="delta-positive">+40.4%</td>
+        </tr>
+        <tr>
+          <td>Win-Stay / Lose-Shift (WSLS Rule)</td>
+          <td>99.6%</td>
+          <td>0.2%</td>
+          <td>0.2%</td>
+          <td>34.9%</td>
+          <td class="delta-positive">+64.7%</td>
+        </tr>
+        <tr>
+          <td>Cycling (Forward R &rarr; P &rarr; S)</td>
+          <td>88.1%</td>
+          <td>5.9%</td>
+          <td>6.0%</td>
+          <td>32.0%</td>
+          <td class="delta-positive">+56.1%</td>
+        </tr>
+        <tr>
+          <td>Copycat (Direct Mirroring)</td>
+          <td>88.7%</td>
+          <td>11.0%</td>
+          <td>0.3%</td>
+          <td>30.4%</td>
+          <td class="delta-positive">+58.3%</td>
+        </tr>
+        <tr>
+          <td>Bayesian Dirichlet Opponent</td>
+          <td>42.7%</td>
+          <td>34.0%</td>
+          <td>23.3%</td>
+          <td>32.4%</td>
+          <td class="delta-positive">+10.3%</td>
+        </tr>
+        <tr>
+          <td>CSP Constraint Adversary</td>
+          <td>25.9%</td>
+          <td>41.0%</td>
+          <td>33.1%</td>
+          <td>33.9%</td>
+          <td class="delta-negative">-8.0%</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Visualization Tab Strip -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-btn-winrate" onclick="switchPlotTab('winrate')">Rolling Win-Rate Comparison</button>
+      <button class="tab-btn" id="tab-btn-prob" onclick="switchPlotTab('prob')">Probability Distribution Evolution</button>
+    </div>
+
+    <div class="plot-container">
+      <img id="plot-image" class="plot-img" src="/docs/winrate_plot.png" alt="Benchmark Plot">
+    </div>
+  </div>
+
+  <!-- Privacy Policy Modal -->
+  <div class="modal-backdrop" id="privacy-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>Data Governance & Fair Play</span>
+        <button class="modal-close" onclick="closePrivacyModal()">&times;</button>
+      </div>
+      <div class="modal-content">
+        <h3>1. Zero-Peeking Cryptographic Commitment</h3>
+        <p>
+          Before each turn, the AI generates a secret nonce and produces a SHA-256 cryptographic commitment of its intended action. 
+          The move is fixed in stone before you click, guaranteeing complete fair play.
+        </p>
+
+        <h3>2. Explicit Consent & Anonymity (GDPR/CCPA)</h3>
+        <p>
+          By default, all games run in pure ephemeral in-memory mode. No PII, cookies, or persistent identifiers are captured. 
+          If you opt in, only round action tokens (R, P, S) and timestamps are collected to analyze model convergence.
+        </p>
+
+        <h3>3. Right to Erasure</h3>
+        <p>
+          You may wipe all model observations and telemetry at any time by clicking "Wipe Session (Right to be Forgotten)".
+        </p>
+      </div>
+      <button class="btn-action" style="width: 100%;" onclick="closePrivacyModal()">Acknowledge & Close</button>
     </div>
   </div>
 
   <script>
-    const EMOJIS = { "R": "🪨", "P": "📄", "S": "✂️" };
-    const NAMES = { "R": "Rock", "P": "Paper", "S": "Scissors" };
+    let isOptedIn = false;
 
-    async function playMove(move) {
+    // Hotkey listener (R, P, S)
+    document.addEventListener('keydown', (e) => {
+      const key = e.key.toUpperCase();
+      if (['R', 'P', 'S'].includes(key)) {
+        playRound(key);
+      }
+    });
+
+    async function playRound(move) {
       try {
-        const res = await fetch('/api/play', {
+        const resp = await fetch('/api/play', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ move })
         });
-        const data = await res.json();
+        const data = await resp.json();
         updateUI(data);
       } catch (err) {
-        console.error('Error playing move:', err);
-      }
-    }
-
-    async function resetGame() {
-      try {
-        const res = await fetch('/api/reset', { method: 'POST' });
-        const data = await res.json();
-        updateUI(data);
-        document.getElementById('player-move-icon').innerText = '❔';
-        document.getElementById('player-move-label').innerText = 'Choose move';
-        document.getElementById('ai-move-icon').innerText = '🤖';
-        document.getElementById('ai-move-label').innerText = 'Waiting...';
-        document.getElementById('outcome-pill').className = 'outcome-pill';
-        document.getElementById('outcome-pill').innerText = 'Game reset. Choose your move!';
-        document.getElementById('ai-prediction-text').innerText = 'Model reset to initial state.';
-      } catch (err) {
-        console.error('Error resetting game:', err);
+        console.error("Round submission failed:", err);
       }
     }
 
     function updateUI(data) {
-      document.getElementById('score-rounds').innerText = data.total_rounds;
+      // Update scoreboard
+      document.getElementById('score-human').innerText = data.human_wins;
       document.getElementById('score-ai').innerText = data.agent_wins;
-      document.getElementById('score-you').innerText = data.human_wins;
-      document.getElementById('score-rate').innerText = `${data.ai_win_rate}%`;
+      document.getElementById('score-ties').innerText = data.ties;
+      document.getElementById('score-ai-rate').innerText = data.ai_win_rate + '%';
 
+      // Update Outcome
       if (data.last_round) {
         const lr = data.last_round;
-        document.getElementById('player-move-icon').innerText = EMOJIS[lr.human_move];
-        document.getElementById('player-move-label').innerText = lr.human_move_name;
-        document.getElementById('ai-move-icon').innerText = EMOJIS[lr.agent_move];
-        document.getElementById('ai-move-label').innerText = lr.agent_move_name;
+        const titleEl = document.getElementById('outcome-title');
+        titleEl.className = 'outcome-title ' + lr.outcome.toLowerCase();
 
-        const pill = document.getElementById('outcome-pill');
         if (lr.outcome === 'WIN') {
-          pill.className = 'outcome-pill outcome-win';
-          pill.innerText = `🤖 AI WON! (Predicted your ${lr.human_move_name} and played ${lr.agent_move_name})`;
+          titleEl.innerText = 'AI Wins the Round!';
         } else if (lr.outcome === 'LOSS') {
-          pill.className = 'outcome-pill outcome-loss';
-          pill.innerText = `🎉 YOU WON! (AI played ${lr.agent_move_name})`;
+          titleEl.innerText = 'You Win the Round!';
         } else {
-          pill.className = 'outcome-pill outcome-tie';
-          pill.innerText = `🤝 IT'S A TIE! (Both played ${lr.human_move_name})`;
+          titleEl.innerText = 'Round Tied!';
         }
 
-        document.getElementById('ai-prediction-text').innerText = 
-          `Predicted Opponent: ${lr.predicted_move_name} (${lr.predicted_move}) ➔ Played Counter: ${lr.agent_move_name} (${lr.agent_move})`;
+        document.getElementById('outcome-details').innerText = 
+          `You: ${lr.human_move_name} (${lr.human_move}) vs. AI: ${lr.agent_move_name} (${lr.agent_move})`;
+
+        if (lr.explainability) {
+          document.getElementById('outcome-explanation').innerText = lr.explainability.explanation;
+        }
+
+        // Update Fair Play hash
+        document.getElementById('commitment-hash-text').innerText = 
+          `Committed: ${lr.commitment_hash}\nSalt: ${lr.salt} | Verified: ${lr.verification_passed ? 'YES (Valid)' : 'FAILED'}`;
       }
 
-      // Update History List
-      const histList = document.getElementById('history-list');
-      if (data.history && data.history.length > 0) {
-        histList.innerHTML = data.history.slice().reverse().map(h => {
-          let badgeColor = h.outcome === 'WIN' ? '#ef4444' : (h.outcome === 'LOSS' ? '#22c55e' : '#f59e0b');
-          return `
-            <div class="history-row">
-              <span>#${h.round}</span>
-              <span>You: ${EMOJIS[h.human]} ${h.human}</span>
-              <span>AI: ${EMOJIS[h.agent]} ${h.agent}</span>
-              <span style="color: ${badgeColor}; font-weight: 700;">${h.outcome === 'WIN' ? 'AI WIN' : (h.outcome === 'LOSS' ? 'YOU WIN' : 'TIE')}</span>
-            </div>
+      // Update Bayesian Probabilities
+      if (data.bayesian_distribution) {
+        const bd = data.bayesian_distribution;
+        document.getElementById('prob-rock-val').innerText = bd.R + '%';
+        document.getElementById('prob-rock-bar').style.width = bd.R + '%';
+
+        document.getElementById('prob-paper-val').innerText = bd.P + '%';
+        document.getElementById('prob-paper-bar').style.width = bd.P + '%';
+
+        document.getElementById('prob-scissors-val').innerText = bd.S + '%';
+        document.getElementById('prob-scissors-bar').style.width = bd.S + '%';
+      }
+
+      // Update Uncertainty & EU
+      if (data.uncertainty) {
+        document.getElementById('metric-entropy').innerText = data.uncertainty.entropy + ' bits';
+      }
+
+      if (data.expected_utilities) {
+        const eu = data.expected_utilities;
+        const bestMove = Object.keys(eu).reduce((a, b) => eu[a] > eu[b] ? a : b);
+        const moveNames = { 'R': 'Rock', 'P': 'Paper', 'S': 'Scissors' };
+        document.getElementById('metric-optimal-move').innerText = `${moveNames[bestMove]} (EU: ${eu[bestMove]})`;
+      }
+
+      // Update Strategy Reasoning
+      if (data.detected_strategy) {
+        const ds = data.detected_strategy;
+        const badgeEl = document.getElementById('strategy-badge');
+        if (ds.detected) {
+          badgeEl.innerText = `${ds.strategy} (${Math.round(ds.confidence * 100)}%)`;
+          badgeEl.style.color = '#a855f7';
+        } else {
+          badgeEl.innerText = 'Active (Bayesian Mode)';
+          badgeEl.style.color = '#94a3b8';
+        }
+        document.getElementById('strategy-explanation').innerText = ds.explanation;
+      }
+    }
+
+    async function resetGame() {
+      const resp = await fetch('/api/reset', { method: 'POST' });
+      const data = await resp.json();
+      updateUI(data);
+      document.getElementById('outcome-title').innerText = 'Match Reset';
+      document.getElementById('outcome-details').innerText = 'Model priors and game history cleared.';
+      document.getElementById('outcome-explanation').innerText = '';
+      document.getElementById('commitment-hash-text').innerText = 'Pending move commitment...';
+    }
+
+    async function runCSPGenerator() {
+      const length = document.getElementById('csp-len-select').value;
+      const maxTransProb = document.getElementById('csp-prob-select').value;
+
+      try {
+        const resp = await fetch('/api/csp/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ length: parseInt(length), max_trans_prob: parseFloat(maxTransProb) })
+        });
+        const data = await resp.json();
+        const audit = data.audit;
+
+        document.getElementById('audit-balance').innerText = audit.balance_satisfied ? '✓ PASSED' : '✗ FAILED';
+        document.getElementById('audit-triples').innerText = `${audit.triple_repeats_found} Found`;
+        document.getElementById('audit-trans-prob').innerText = audit.max_observed_trans_prob;
+        document.getElementById('audit-entropy').innerText = audit.transition_entropies.R + ' bits';
+
+        const sample = data.sequence_sample.join(' ');
+        document.getElementById('csp-seq-display').innerText = 
+          `Generated N=${data.total_length} (Explored: ${data.search_diagnostics.nodes_explored} nodes, Backtracks: ${data.search_diagnostics.backtrack_count})\nSample (first 60): ${sample}...`;
+      } catch (err) {
+        console.error("CSP generation failed:", err);
+      }
+    }
+
+    async function triggerBenchmark() {
+      const tbody = document.getElementById('benchmark-tbody');
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#38bdf8;">Running 1,000 rounds across 8 opponent classes... Please wait.</td></tr>';
+
+      try {
+        const resp = await fetch('/api/run_benchmark');
+        const data = await resp.json();
+
+        let rowsHtml = '';
+        data.results.forEach(r => {
+          const deltaClass = r.delta_win_rate > 5 ? 'delta-positive' : (r.delta_win_rate < -5 ? 'delta-negative' : 'delta-neutral');
+          const deltaSign = r.delta_win_rate > 0 ? '+' : '';
+          rowsHtml += `
+            <tr>
+              <td>${r.opponent_name}</td>
+              <td>${r.adaptive_win_rate}%</td>
+              <td>${r.adaptive_loss_rate}%</td>
+              <td>${r.adaptive_tie_rate}%</td>
+              <td>${r.random_win_rate}%</td>
+              <td class="${deltaClass}">${deltaSign}${r.delta_win_rate}%</td>
+            </tr>
           `;
-        }).join('');
-      }
+        });
+        tbody.innerHTML = rowsHtml;
 
-      // Update Markov Grid
-      if (data.model_stats && data.model_stats.order2_transitions) {
-        const o2 = data.model_stats.order2_transitions;
-        const keys = Object.keys(o2);
-        const grid = document.getElementById('order2-grid');
-        if (keys.length > 0) {
-          grid.innerHTML = keys.map(k => {
-            const counts = o2[k];
-            const countsStr = Object.entries(counts).map(([m, c]) => `${m}:${c}`).join(' ');
-            return `<div class="markov-item"><strong style="color:var(--accent-blue)">[${k}]</strong> &rarr; ${countsStr}</div>`;
-          }).join('');
-        }
+        // Refresh plots
+        document.getElementById('plot-image').src = `/docs/winrate_plot.png?t=${Date.now()}`;
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color:#ef4444;">Benchmark run failed.</td></tr>';
       }
     }
 
-    function switchTab(tabName) {
-      ['history', 'markov', 'benchmark'].forEach(t => {
-        document.getElementById(`tab-${t}`).style.display = (t === tabName) ? 'block' : 'none';
-      });
-      document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.getAttribute('onclick').includes(tabName));
-      });
+    function switchPlotTab(type) {
+      const winrateBtn = document.getElementById('tab-btn-winrate');
+      const probBtn = document.getElementById('tab-btn-prob');
+      const plotImg = document.getElementById('plot-image');
+
+      if (type === 'winrate') {
+        winrateBtn.classList.add('active');
+        probBtn.classList.remove('active');
+        plotImg.src = `/docs/winrate_plot.png?t=${Date.now()}`;
+      } else {
+        probBtn.classList.add('active');
+        winrateBtn.classList.remove('active');
+        plotImg.src = `/docs/probability_plot.png?t=${Date.now()}`;
+      }
     }
 
-    // Keyboard controls (R, P, S)
-    window.addEventListener('keydown', (e) => {
-      const key = e.key.toUpperCase();
-      if (['R', 'P', 'S'].includes(key)) {
-        playMove(key);
-      }
-    });
+    async function toggleConsent() {
+      isOptedIn = !isOptedIn;
+      await fetch('/api/privacy/consent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ consent: isOptedIn })
+      });
+      document.getElementById('consent-status-badge').innerText = 
+        isOptedIn ? '🛡️ Privacy Status: Opted-In (Telemetry Active)' : '🛡️ Privacy Status: Ephemeral (Zero-Storage)';
+    }
 
-    // Initial state fetch
-    fetch('/api/state').then(r => r.json()).then(updateUI).catch(() => {});
+    async function purgeSessionData() {
+      if (confirm('Are you sure you want to permanently erase all telemetry and reset AI models?')) {
+        await fetch('/api/privacy/purge', { method: 'POST' });
+        await resetGame();
+        alert('All session data and telemetry have been permanently purged (Right to be Forgotten).');
+      }
+    }
+
+    function openPrivacyModal() {
+      document.getElementById('privacy-modal').classList.add('open');
+    }
+
+    function closePrivacyModal() {
+      document.getElementById('privacy-modal').classList.remove('open');
+    }
+
+    // Initial state load
+    fetch('/api/state').then(r => r.json()).then(updateUI);
   </script>
 </body>
 </html>
