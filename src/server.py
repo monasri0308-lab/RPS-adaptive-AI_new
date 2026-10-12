@@ -64,10 +64,15 @@ game_history = {
 }
 
 
+class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
+
 class RPSRequestHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         super().end_headers()
 
@@ -75,27 +80,55 @@ class RPSRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
 
-    def do_GET(self):
+    def do_HEAD(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
-
         if path in ["/", "/index.html"]:
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            html_file = os.path.join(WEB_DIR, "index.html")
-            with open(html_file, "rb") as f:
-                self.wfile.write(f.read())
+        elif path.startswith("/docs/"):
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.end_headers()
+        else:
+            self.send_response(200)
+            self.end_headers()
+
+    def do_GET(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+
+        if path == "/favicon.ico":
+            self.send_response(204)
+            self.end_headers()
             return
+
+        if path in ["/", "/index.html"]:
+            html_file = os.path.join(WEB_DIR, "index.html")
+            if os.path.exists(html_file):
+                with open(html_file, "rb") as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(content)))
+                self.end_headers()
+                self.wfile.write(content)
+                return
+            else:
+                self.send_error(404, "Index HTML not found")
+                return
 
         elif path == "/docs/winrate_plot.png":
             plot_file = os.path.join(PROJECT_ROOT, "docs", "winrate_plot.png")
             if os.path.exists(plot_file):
+                with open(plot_file, "rb") as f:
+                    content = f.read()
                 self.send_response(200)
                 self.send_header("Content-Type", "image/png")
+                self.send_header("Content-Length", str(len(content)))
                 self.end_headers()
-                with open(plot_file, "rb") as f:
-                    self.wfile.write(f.read())
+                self.wfile.write(content)
                 return
             else:
                 self.send_error(404, "Win-rate plot not found")
@@ -104,11 +137,13 @@ class RPSRequestHandler(http.server.SimpleHTTPRequestHandler):
         elif path == "/docs/probability_plot.png":
             prob_file = os.path.join(PROJECT_ROOT, "docs", "probability_plot.png")
             if os.path.exists(prob_file):
+                with open(prob_file, "rb") as f:
+                    content = f.read()
                 self.send_response(200)
                 self.send_header("Content-Type", "image/png")
+                self.send_header("Content-Length", str(len(content)))
                 self.end_headers()
-                with open(prob_file, "rb") as f:
-                    self.wfile.write(f.read())
+                self.wfile.write(content)
                 return
             else:
                 self.send_error(404, "Probability plot not found")
@@ -359,7 +394,7 @@ def start_server(port: int = PORT, auto_open: bool = True):
     for p in candidate_ports:
         try:
             server_address = ("0.0.0.0", p)
-            httpd = socketserver.TCPServer(server_address, RPSRequestHandler)
+            httpd = ThreadedHTTPServer(server_address, RPSRequestHandler)
             active_port = p
             break
         except OSError:
